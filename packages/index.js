@@ -1,11 +1,12 @@
 // packages / index.js
 
 // 导入单个组件
-import treeSelect from './treeSelect/index';
+import aTreeSelect from './treeSelect/index';
+import antInputDirective from './_util/antInputDirective';
 
 // 以数组的结构保存组件，便于遍历
 const components = [
-  treeSelect
+  aTreeSelect
 ];
 
 // 定义 install 方法
@@ -14,6 +15,7 @@ const install = function (Vue) {
   install.installed = true;
   // 遍历并注册全局组件
   components.map(component => {
+    Vue.use(antInputDirective);
     Vue.component(component.name, component)
   })
 };

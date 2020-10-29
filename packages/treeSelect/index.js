@@ -183,7 +183,6 @@ const TreeSelect = {
     return <VcTreeSelect {...VcTreeSelectProps}>{filterEmpty(this.$slots.default)}</VcTreeSelect>;
   },
 };
-
 /* istanbul ignore next */
 TreeSelect.install = function(Vue) {
   Vue.use(Base);

@@ -12,7 +12,7 @@
 </template>
 
 <script>
-import aTreeSelect from "../packages/treeSelect/index";
+// import aTreeSelect from "../packages/treeSelect/index";
 
 const treeData = [
   {
@@ -54,7 +54,7 @@ const treeData = [
 export default {
   name: 'App',
   components: {
-    aTreeSelect,
+    // aTreeSelect,
   },
   data() {
     return {

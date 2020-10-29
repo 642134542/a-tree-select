@@ -4,7 +4,6 @@
  * - multiple: in the selector
  * Move the code as a SearchInput for easy management.
  */
-
 import PropTypes from '../../_util/vue-types';
 import { createRef } from './util';
 

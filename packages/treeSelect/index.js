@@ -1,36 +1,39 @@
-/* eslint-disable */
+import './src/style/index';
 import VcTreeSelect, { TreeNode, SHOW_ALL, SHOW_PARENT, SHOW_CHILD } from '../vc-tree-select';
-import { inject } from 'vue';
-import classNames from '../_util/classNames';
+import classNames from 'classnames';
 import { TreeSelectProps } from './interface';
 import warning from '../_util/warning';
-import { initDefaultProps, getOptionProps, getComponent, getSlot } from '../_util/props-util';
-// import { ConfigConsumerProps } from '../config-provider';
-import LoadingOutlined from '@ant-design/icons-vue/LoadingOutlined';
-import CaretDownOutlined from '@ant-design/icons-vue/CaretDownOutlined';
-import DownOutlined from '@ant-design/icons-vue/DownOutlined';
-import CloseOutlined from '@ant-design/icons-vue/CloseOutlined';
-import CloseCircleOutlined from '@ant-design/icons-vue/CloseCircleOutlined';
+import {
+  initDefaultProps,
+  getOptionProps,
+  getComponentFromProp,
+  filterEmpty,
+  getListeners,
+} from '../_util/props-util';
+import { ConfigConsumerProps } from '../config-provider';
+import Base from '../base';
 
 export { TreeData, TreeSelectProps } from './interface';
+import Icon from '../icon';
 import omit from 'omit.js';
 
 const TreeSelect = {
-  TreeNode,
+  TreeNode: { ...TreeNode, name: 'ATreeSelectNode' },
   SHOW_ALL,
   SHOW_PARENT,
   SHOW_CHILD,
-  inheritAttrs: false,
   name: 'ATreeSelect',
   props: initDefaultProps(TreeSelectProps(), {
     transitionName: 'slide-up',
     choiceTransitionName: 'zoom',
     showSearch: false,
   }),
-  setup() {
-    return {
-      // configProvider: inject('configProvider', ConfigConsumerProps),
-    };
+  model: {
+    prop: 'value',
+    event: 'change',
+  },
+  inject: {
+    configProvider: { default: () => ConfigConsumerProps },
   },
   created() {
     warning(
@@ -40,39 +43,27 @@ const TreeSelect = {
     );
   },
   methods: {
-    saveTreeSelect(node) {
-      this.vcTreeSelect = node;
-    },
     focus() {
-      this.vcTreeSelect.focus();
+      this.$refs.vcTreeSelect.focus();
     },
 
     blur() {
-      this.vcTreeSelect.blur();
+      this.$refs.vcTreeSelect.blur();
     },
     renderSwitcherIcon(prefixCls, { isLeaf, loading }) {
       if (loading) {
-        return <LoadingOutlined class={`${prefixCls}-switcher-loading-icon`} />;
+        return <Icon type="loading" class={`${prefixCls}-switcher-loading-icon`} />;
       }
       if (isLeaf) {
         return null;
       }
-      return <CaretDownOutlined class={`${prefixCls}-switcher-icon`} />;
+      return <Icon type="caret-down" class={`${prefixCls}-switcher-icon`} />;
     },
-    handleChange(...args) {
-      this.$emit('update:value', args[0]);
-      this.$emit('change', ...args);
-    },
-    handleTreeExpand(...args) {
-      this.$emit('update:treeExpandedKeys', args[0]);
-      this.$emit('treeExpand', ...args);
-    },
-    handleSearch(...args) {
-      this.$emit('update:searchValue', args[0]);
-      this.$emit('search', ...args);
+    bindChange() {
+      this.$emit('change', ...arguments);
     },
     updateTreeData(treeData) {
-      const { $slots } = this;
+      const { $scopedSlots } = this;
       const defaultFields = {
         children: 'children',
         title: 'title',
@@ -82,19 +73,19 @@ const TreeSelect = {
       };
       const replaceFields = { ...defaultFields, ...this.$props.replaceFields };
       return treeData.map(item => {
-        const { slots = {} } = item;
+        const { scopedSlots = {} } = item;
         const label = item[replaceFields.label];
         const title = item[replaceFields.title];
         const value = item[replaceFields.value];
         const key = item[replaceFields.key];
         const children = item[replaceFields.children];
-        let newLabel = typeof label === 'function' ? label() : label;
-        let newTitle = typeof title === 'function' ? title() : title;
-        if (!newLabel && slots.label && $slots[slots.label]) {
-          newLabel = $slots.label(item);
+        let newLabel = typeof label === 'function' ? label(this.$createElement) : label;
+        let newTitle = typeof title === 'function' ? title(this.$createElement) : title;
+        if (!newLabel && scopedSlots.label && $scopedSlots[scopedSlots.label]) {
+          newLabel = $scopedSlots[scopedSlots.label](item);
         }
-        if (!newTitle && slots.title && $slots[slots.title]) {
-          newTitle = $slots.title(item);
+        if (!newTitle && scopedSlots.title && $scopedSlots[scopedSlots.title]) {
+          newTitle = $scopedSlots[scopedSlots.title](item);
         }
         const treeNodeProps = {
           ...item,
@@ -111,7 +102,7 @@ const TreeSelect = {
     },
   },
 
-  render() {
+  render(h) {
     const props = getOptionProps(this);
     const {
       prefixCls: customizePrefixCls,
@@ -121,14 +112,13 @@ const TreeSelect = {
       getPopupContainer,
       ...restProps
     } = props;
-    const { class: className } = this.$attrs;
     const getPrefixCls = this.configProvider.getPrefixCls;
     const prefixCls = getPrefixCls('select', customizePrefixCls);
 
     const renderEmpty = this.configProvider.renderEmpty;
-    const notFoundContent = getComponent(this, 'notFoundContent');
-    const removeIcon = getComponent(this, 'removeIcon');
-    const clearIcon = getComponent(this, 'clearIcon');
+    const notFoundContent = getComponentFromProp(this, 'notFoundContent');
+    const removeIcon = getComponentFromProp(this, 'removeIcon');
+    const clearIcon = getComponentFromProp(this, 'clearIcon');
     const { getPopupContainer: getContextPopupContainer } = this.configProvider;
     const rest = omit(restProps, [
       'inputIcon',
@@ -137,7 +127,7 @@ const TreeSelect = {
       'switcherIcon',
       'suffixIcon',
     ]);
-    let suffixIcon = getComponent(this, 'suffixIcon');
+    let suffixIcon = getComponentFromProp(this, 'suffixIcon');
     suffixIcon = Array.isArray(suffixIcon) ? suffixIcon[0] : suffixIcon;
     let treeData = props.treeData;
     if (treeData) {
@@ -146,7 +136,6 @@ const TreeSelect = {
     const cls = {
       [`${prefixCls}-lg`]: size === 'large',
       [`${prefixCls}-sm`]: size === 'small',
-      [className]: className,
     };
 
     // showSearch: single - false, multiple - true
@@ -155,54 +144,51 @@ const TreeSelect = {
       showSearch = !!(restProps.multiple || restProps.treeCheckable);
     }
 
-    let checkable = getComponent(this, 'treeCheckable');
+    let checkable = getComponentFromProp(this, 'treeCheckable');
     if (checkable) {
       checkable = <span class={`${prefixCls}-tree-checkbox-inner`} />;
     }
 
-    const inputIcon = suffixIcon || <DownOutlined class={`${prefixCls}-arrow-icon`} />;
+    const inputIcon = suffixIcon || <Icon type="down" class={`${prefixCls}-arrow-icon`} />;
 
-    const finalRemoveIcon = removeIcon || <CloseOutlined class={`${prefixCls}-remove-icon`} />;
+    const finalRemoveIcon = removeIcon || <Icon type="close" class={`${prefixCls}-remove-icon`} />;
 
     const finalClearIcon = clearIcon || (
-        <CloseCircleOutlined class={`${prefixCls}-clear-icon`} theme="filled" />
-  );
+        <Icon type="close-circle" class={`${prefixCls}-clear-icon`} theme="filled" />
+    );
     const VcTreeSelectProps = {
-      ...this.$attrs,
-      switcherIcon: nodeProps => this.renderSwitcherIcon(prefixCls, nodeProps),
-      inputIcon,
-      removeIcon: finalRemoveIcon,
-      clearIcon: finalClearIcon,
-      ...rest,
-      showSearch,
-      getPopupContainer: getPopupContainer || getContextPopupContainer,
-      dropdownClassName: classNames(dropdownClassName, `${prefixCls}-tree-dropdown`),
-      prefixCls,
-      dropdownStyle: { maxHeight: '100vh', overflow: 'auto', ...dropdownStyle },
-      treeCheckable: checkable,
-      notFoundContent: notFoundContent || renderEmpty('Select'),
-      ...(treeData ? { treeData } : {}),
+      props: Object.assign(
+          {
+            switcherIcon: nodeProps => this.renderSwitcherIcon(prefixCls, nodeProps),
+            inputIcon,
+            removeIcon: finalRemoveIcon,
+            clearIcon: finalClearIcon,
+            ...rest,
+            showSearch,
+            getPopupContainer: getPopupContainer || getContextPopupContainer,
+            dropdownClassName: classNames(dropdownClassName, `${prefixCls}-tree-dropdown`),
+            prefixCls,
+            dropdownStyle: { maxHeight: '100vh', overflow: 'auto', ...dropdownStyle },
+            treeCheckable: checkable,
+            notFoundContent: notFoundContent || renderEmpty(h, 'Select'),
+            __propsSymbol__: Symbol(),
+          },
+          treeData ? { treeData } : {},
+      ),
       class: cls,
-      onChange: this.handleChange,
-      onSearch: this.handleSearch,
-      onTreeExpand: this.handleTreeExpand,
-      ref: this.saveTreeSelect,
-      children: getSlot(this),
+      on: { ...getListeners(this), change: this.bindChange },
+      ref: 'vcTreeSelect',
+      scopedSlots: this.$scopedSlots,
     };
-    return (
-        <VcTreeSelect
-    {...VcTreeSelectProps}
-    vSlots={omit(this.$slots, ['default'])}
-    __propsSymbol__={[]}
-    />
-  );
+    return <VcTreeSelect {...VcTreeSelectProps}>{filterEmpty(this.$slots.default)}</VcTreeSelect>;
   },
 };
 
 /* istanbul ignore next */
-TreeSelect.install = function(app) {
-  app.component(TreeSelect.name, TreeSelect);
-  app.component('ATreeSelectNode', TreeSelect.TreeNode);
+TreeSelect.install = function(Vue) {
+  Vue.use(Base);
+  Vue.component(TreeSelect.name, TreeSelect);
+  Vue.component(TreeSelect.TreeNode.name, TreeSelect.TreeNode);
 };
 
 export default TreeSelect;
